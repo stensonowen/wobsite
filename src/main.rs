@@ -16,7 +16,12 @@ fn files(file: PathBuf) -> Option<NamedFile> {
 
 #[get("/")]
 fn index() -> io::Result<NamedFile> {
-    NamedFile::open("index.html")
+    NamedFile::open("static/index.html")
+}
+
+#[error(404)]
+fn not_found() -> Option<NamedFile> {
+	NamedFile::open("static/404.png").ok()
 }
 
 fn main() {
@@ -28,5 +33,10 @@ fn main() {
     //    ;
     //let app = rocket::custom(config, false);
     //app.mount("/", routes![hello, hi]).launch();
-    rocket::ignite().mount("/", routes![index, files]).launch();
+    rocket::ignite()
+        .mount("/", routes![index, files])
+        .catch(errors![not_found])
+        .launch();
 }
+
+
