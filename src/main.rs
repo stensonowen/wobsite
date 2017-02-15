@@ -7,7 +7,6 @@ extern crate rocket;
 use std::io;
 use std::path::{Path, PathBuf};
 use rocket::response::NamedFile;
-use rocket::config::{Config, Environment};
 
 
 #[get("/file/<file..>")]
