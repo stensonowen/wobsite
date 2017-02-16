@@ -6,8 +6,10 @@ port = 8080
 log = "normal"
 
 [staging]
+port = 3030
 log = "normal"
 
 [production]
+port = 3030
 log = "critical"
 
