@@ -1,15 +1,13 @@
 [global]
-address = "0.0.0.0"
+address = "localhost"
+port = 3030
 
 [development]
-port = 8080
 log = "normal"
 
 [staging]
-port = 3030
 log = "normal"
 
 [production]
-port = 3030
 log = "critical"
 
