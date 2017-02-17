@@ -1,0 +1,10 @@
+[package]
+name = "convert"
+version = "0.1.0"
+authors = ["owen <owen@oms.sh>"]
+
+[dependencies]
+clap = "2.20.4"
+crowbook = "0.11.1"
+tera = "0.7.1"
+
