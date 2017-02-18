@@ -63,7 +63,7 @@ fn main() {
     println!("Files: `{:?}`", files);
 
     //unwrap shouldn't be a problem; do we need a graceful exit for bad utf8?
-    let templates = tera::Tera::new("*.html.tera").unwrap();
+    let templates = tera::Tera::new("**/*.html.tera").unwrap();
 
     //only iterate through `.post` files
     for path in files {
@@ -71,7 +71,8 @@ fn main() {
         let template_path = template.as_path().to_str().unwrap();
         //let page_path = Path::new(path.file_stem().unwrap()).with_extension("html");
         let page_path = dir.join(path.file_stem().unwrap()).with_extension("html");
-        let page = render_page(&templates, template_path, &path);
+        //let page = render_page(&templates, template_path, &path);
+        let page = render_page(&templates, "template.html.tera", &path);
         save_page(page, &page_path)
             .expect(&format!("Failed to save flie {:?}", page_path));
         println!("Saved file to `{:?}`", page_path);
@@ -93,8 +94,8 @@ fn render_page(templates: &Tera, template: &str, path: &PathBuf) -> String {
     let context = parse_header(&mut r).expect("Failed to parse file config");
     templates.render(template, context)
         .unwrap_or_else(|e| 
-            format!("Failed to apply context {:?} to template {:?}: {}",
-                template, path, e))
+            panic!(format!("Failed to apply context {:?} to template {:?}: {:?}", 
+                           template, path, e)))
 }
 
 
