@@ -4,14 +4,18 @@ extern crate tera;
 
 use std::path::{Path, PathBuf};
 use std::fs;
-use std::io::{BufRead, BufReader};
+use std::io::{self, BufRead, BufReader, Write};
 use std::ffi::OsStr;
+use tera::Tera;
+
+//see Cobalt.rs for post layout (slightly added onto markdown)
+// https://github.com/cobalt-org/cobalt.rs#posts
 
 // args:
 //  folder w/ everything? w/ an index.html.tera and post*.tera ?
 
 const DEFAULT_TEMPL: &'static str = "template.html.tera";
-static POST_SUFFIX: &'static str = ".post";
+static POST_SUFFIX: &'static str = "post";
 
 fn main() {
     //TODO: modify index.html
@@ -47,38 +51,50 @@ fn main() {
     // follow directories recursively?
     // ignore files we can't get a handle to (complain explicitly?)
     let post_type: Option<&OsStr> = Some(OsStr::new(POST_SUFFIX));
-    let files: Vec<fs::DirEntry> = fs::read_dir(dir)
+    let files: Vec<PathBuf> = fs::read_dir(dir)
         .expect("Failed to open directory")
-        .filter_map(|de| de.ok())
-        .filter(|de| de
-                .path().extension() == post_type
-            //.metadata()
-            //.expect("Failed to open entry metadata")
-            //.is_file()  // filter by extension instead?
-            )
+        .filter_map(|de| match de {
+            Ok(d) => Some(d.path()),
+            Err(_) => None,
+        })
+        .filter(|pb| pb .extension() == post_type)
         .collect();
         
     println!("Files: `{:?}`", files);
 
-    //read file data; construct content
-    //see Cobalt.rs for post layout (slightly added onto markdown)
-    // https://github.com/cobalt-org/cobalt.rs#posts
-
     //unwrap shouldn't be a problem; do we need a graceful exit for bad utf8?
-    //let template = tera::Tera::new(template.to_str().unwrap()).unwrap(); 
-    let template = tera::Tera::new("*.html.tera").unwrap();
-    let mut context = tera::Context::new();
+    let templates = tera::Tera::new("*.html.tera").unwrap();
 
     //only iterate through `.post` files
     for path in files {
         println!("Opening file: `{:?}`", path);
-        let mut s = String::new();
-        let f = fs::File::open(path.path()).expect("Unable to open file");
-        let mut r = BufReader::new(f);
-        println!("{:?}", parse_header(&mut r));
-
+        let template_path = template.as_path().to_str().unwrap();
+        //let page_path = Path::new(path.file_stem().unwrap()).with_extension("html");
+        let page_path = dir.join(path.file_stem().unwrap()).with_extension("html");
+        let page = render_page(&templates, template_path, &path);
+        save_page(page, &page_path)
+            .expect(&format!("Failed to save flie {:?}", page_path));
+        println!("Saved file to `{:?}`", page_path);
     }
 
+}
+
+fn save_page(page: String, dest: &Path) -> Result<(), io::Error>{
+    //writes page to destination
+    //panics if weird os issue
+    let mut f = fs::File::create(dest)?;
+    f.write_all(page.as_bytes())
+}
+
+fn render_page(templates: &Tera, template: &str, path: &PathBuf) -> String {
+    //can throw errors if template/context pair invalid: non-recoverable
+    let f = fs::File::open(path).expect("Unable to open file");
+    let mut r = BufReader::new(f);
+    let context = parse_header(&mut r).expect("Failed to parse file config");
+    templates.render(template, context)
+        .unwrap_or_else(|e| 
+            format!("Failed to apply context {:?} to template {:?}: {}",
+                template, path, e))
 }
 
 
@@ -95,10 +111,18 @@ fn parse_header(br: &mut BufReader<fs::File>) -> Result<tera::Context,ParseError
             return Ok(context);
         }
 
-        let mid: usize = s.find(':').ok_or(ParseError::InvalidLine(count))?;
-        let (key, value) = s.split_at(mid);
-        println!("First half: `{}`;  second half: `{}`", key, value);
-        //let line = s.trim();
+        let line = s.trim();
+        if line.len() == 0 || line.starts_with('#') || line.starts_with("//") {
+            //blank line or comment
+            continue;
+        }
+        // key and value separated by a colon
+        // colons not allowed in the key
+        // (no keys in the colon either D: )
+        let mid: usize = line.find(':').ok_or(ParseError::InvalidLine(count))?;
+        let (first, second) = line.split_at(mid);
+        let (key, value) = (first.trim(), second[1..].trim());
+        context.add(key, &value);
 
         count += 1;
     }
