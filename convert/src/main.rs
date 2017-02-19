@@ -1,10 +1,11 @@
 #[macro_use]
 extern crate clap;
 extern crate tera;
+extern crate pandoc;
 
 use std::path::{Path, PathBuf};
 use std::fs;
-use std::io::{self, BufRead, BufReader, Write, Read};
+use std::io::{self, BufRead, BufReader, Read, Write};
 use std::ffi::OsStr;
 use tera::Tera;
 
@@ -75,15 +76,21 @@ fn main() {
     for path in files {
         println!("Opening file: `{:?}`", path);
         //tera doesn't like 
-        let page_path = dir.join(path.file_stem().unwrap()).with_extension("html");
+        //let page_path = dir.join(path.file_stem().unwrap());
+        let page_file = dir.join(path.file_stem().unwrap()).with_extension("html");
+        let page_file_s = page_file.into_os_string().into_string().unwrap();
         let page = render_page(&templates, template_name_s, &path);
-        save_page(page, &page_path)
-            .expect(&format!("Failed to save flie {:?}", page_path));
-        println!("Saved file to `{:?}`", page_path);
+
+        let mut pd = pandoc::Pandoc::new();
+        pd.set_input(pandoc::InputKind::Pipe(page));
+        println!("Writing to {}", page_file_s);
+        pd.set_output(pandoc::OutputKind::File(page_file_s));
+        pd.execute().unwrap();
+        //
+        //save_page(page, &page_file).unwrap();
     }
 
 }
-
 
 fn rel_str_from_pathbuf<'a>(pb: &'a Path) -> &'a str { //bonus lifetime
     if pb.starts_with("./") {
@@ -93,8 +100,7 @@ fn rel_str_from_pathbuf<'a>(pb: &'a Path) -> &'a str { //bonus lifetime
     }.to_str().unwrap()
 }
 
-
-fn save_page(page: String, dest: &Path) -> Result<(), io::Error>{
+fn save_page(page: String, dest: &Path) -> Result<(), io::Error> {
     //writes page to destination
     //panics if weird os issue
     let mut f = fs::File::create(dest)?;
@@ -108,8 +114,8 @@ fn render_page(templates: &Tera, template: &str, path: &PathBuf) -> String {
     let context = parse_content(&mut r).expect("Failed to parse file config");
     templates.render(template, context)
         .unwrap_or_else(|e| 
-            panic!(format!("Failed to apply context {:?}\n\tto template {:?}:\n\t{:?}", 
-                           path, template, e)))
+            panic!("Failed to apply context {:?}\n\tto template {:?}:\n\t{:?}", 
+                           path, template, e))
 }
 
 
