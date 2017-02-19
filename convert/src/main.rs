@@ -4,7 +4,7 @@ extern crate tera;
 
 use std::path::{Path, PathBuf};
 use std::fs;
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{self, BufRead, BufReader, Write, Read};
 use std::ffi::OsStr;
 use tera::Tera;
 
@@ -14,6 +14,7 @@ use tera::Tera;
 // args:
 //  folder w/ everything? w/ an index.html.tera and post*.tera ?
 
+// will look for *.html.tera
 const DEFAULT_TEMPL: &'static str = "template.html.tera";
 static POST_SUFFIX: &'static str = "post";
 
@@ -41,11 +42,13 @@ fn main() {
     assert!(dir.is_dir(), "<directory> must be a directory and not a file");
 
     //what we're going to feed all the content in `dir` into
-    let template: PathBuf = match matches.value_of("template") {
+    let template_path: PathBuf = match matches.value_of("template") {
         Some(t) => PathBuf::from(t),
         None => dir.join(DEFAULT_TEMPL),
     };
-    assert!(template.is_file(), "the template must be an existing file");
+    let template_name_s = template_path.file_name().unwrap().to_str().unwrap();
+
+    assert!(template_path.is_file(), "the template must be an existing file");
 
     //all the actual content we'll be using
     // follow directories recursively?
@@ -63,22 +66,33 @@ fn main() {
     println!("Files: `{:?}`", files);
 
     //unwrap shouldn't be a problem; do we need a graceful exit for bad utf8?
-    let templates = tera::Tera::new("**/*.html.tera").unwrap();
+    let mut all_templates = template_path.clone();
+    all_templates.set_file_name("*.html.tera");
+    let all_templates_s = rel_str_from_pathbuf(&all_templates);
+    let templates = tera::Tera::new(all_templates_s).unwrap();
 
     //only iterate through `.post` files
     for path in files {
         println!("Opening file: `{:?}`", path);
-        let template_path = template.as_path().to_str().unwrap();
-        //let page_path = Path::new(path.file_stem().unwrap()).with_extension("html");
+        //tera doesn't like 
         let page_path = dir.join(path.file_stem().unwrap()).with_extension("html");
-        //let page = render_page(&templates, template_path, &path);
-        let page = render_page(&templates, "template.html.tera", &path);
+        let page = render_page(&templates, template_name_s, &path);
         save_page(page, &page_path)
             .expect(&format!("Failed to save flie {:?}", page_path));
         println!("Saved file to `{:?}`", page_path);
     }
 
 }
+
+
+fn rel_str_from_pathbuf<'a>(pb: &'a Path) -> &'a str { //bonus lifetime
+    if pb.starts_with("./") {
+        pb.file_name().unwrap()
+    } else {
+        pb.as_os_str()
+    }.to_str().unwrap()
+}
+
 
 fn save_page(page: String, dest: &Path) -> Result<(), io::Error>{
     //writes page to destination
@@ -91,15 +105,15 @@ fn render_page(templates: &Tera, template: &str, path: &PathBuf) -> String {
     //can throw errors if template/context pair invalid: non-recoverable
     let f = fs::File::open(path).expect("Unable to open file");
     let mut r = BufReader::new(f);
-    let context = parse_header(&mut r).expect("Failed to parse file config");
+    let context = parse_content(&mut r).expect("Failed to parse file config");
     templates.render(template, context)
         .unwrap_or_else(|e| 
-            panic!(format!("Failed to apply context {:?} to template {:?}: {:?}", 
-                           template, path, e)))
+            panic!(format!("Failed to apply context {:?}\n\tto template {:?}:\n\t{:?}", 
+                           path, template, e)))
 }
 
 
-fn parse_header(br: &mut BufReader<fs::File>) -> Result<tera::Context,ParseError> {
+fn parse_content(br: &mut BufReader<fs::File>) -> Result<tera::Context,ParseError> {
     let mut context = tera::Context::new();
     let mut s = String::new();
     let mut count = 0;
@@ -108,7 +122,13 @@ fn parse_header(br: &mut BufReader<fs::File>) -> Result<tera::Context,ParseError
         let r = br.read_line(&mut s);
         if r.is_err() || r.unwrap() == 0 {  // premature death
             return Err(ParseError::Unfinished);
-        } else if s.starts_with("---") {    // done
+        } else if s.starts_with("---") {
+            s.clear();
+            if let Err(_) = br.read_to_string(&mut s) {
+                return Err(ParseError::InvalidBody);
+            }
+            //TODO: translate
+            context.add("__content__", &s);
             return Ok(context);
         }
 
@@ -133,4 +153,5 @@ fn parse_header(br: &mut BufReader<fs::File>) -> Result<tera::Context,ParseError
 enum ParseError {
     Unfinished,
     InvalidLine(usize),
+    InvalidBody,
 }
