@@ -21,6 +21,11 @@ fn files(file: PathBuf) -> Option<NamedFile> {
 	NamedFile::open(Path::new("public/").join(file)).ok()
 }
 
+#[get("/.well-known/<file..>")]
+fn well_known(file: PathBuf) -> Option<NamedFile> {
+	NamedFile::open(Path::new(".well-known/").join(file)).ok()
+}
+
 #[get("/gpg")] fn gpg() -> io::Result<NamedFile> {
     NamedFile::open("static/oms.gpg")
 }
@@ -52,7 +57,7 @@ fn main() {
     
     //run
     rocket::ignite()
-        .mount("/", routes![index, files, gpg, resume, github])
+        .mount("/", routes![index, files, gpg, resume, github, well_known])
         .catch(errors![not_found])
         .launch();
 }
