@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate clap;
 extern crate tera;
-extern crate pandoc;
+extern crate markdown;
 
 use std::path::{Path, PathBuf};
 use std::fs;
@@ -13,10 +13,13 @@ use tera::Tera;
 // https://github.com/cobalt-org/cobalt.rs#posts
 
 // args:
-//  folder w/ everything? w/ an index.html.tera and post*.tera ?
+//  folder w/ blog posts (todo: recursive?)
+//  template.html.tera: template for blog posts
+//  index.html.tera: index template linking to blog posts
 
 // will look for *.html.tera
 const DEFAULT_TEMPL: &'static str = "template.html.tera";
+const DEFAULT_INDEX: &'static str = "index.html.tera";
 static POST_SUFFIX: &'static str = "post";
 
 fn main() {
@@ -34,7 +37,12 @@ fn main() {
         .arg(clap::Arg::with_name("template")
              .takes_value(true)
              .short("t")
-             .help("Path to a custom template (defaults to /<directory>/template.html.tera)")
+             .help("Path to post template (defaults to <directory>/*.html.tera)")
+             )
+        .arg(clap::Arg::with_name("index")
+             .takes_value(true)
+             .short("i")
+             .help("Path to index template (defaults to <directory>/index.html.tera)")
              )
         .get_matches();
 
@@ -74,20 +82,12 @@ fn main() {
 
     //only iterate through `.post` files
     for path in files {
-        println!("Opening file: `{:?}`", path);
+        println!("Opening file: `{}`", path.display());
         //tera doesn't like 
-        //let page_path = dir.join(path.file_stem().unwrap());
-        let page_file = dir.join(path.file_stem().unwrap()).with_extension("html");
-        let page_file_s = page_file.into_os_string().into_string().unwrap();
+        let page_path = dir.join(path.file_stem().unwrap()).with_extension("html");
         let page = render_page(&templates, template_name_s, &path);
-
-        let mut pd = pandoc::Pandoc::new();
-        pd.set_input(pandoc::InputKind::Pipe(page));
-        println!("Writing to {}", page_file_s);
-        pd.set_output(pandoc::OutputKind::File(page_file_s));
-        pd.execute().unwrap();
-        //
-        //save_page(page, &page_file).unwrap();
+        save_page(page, &page_path).unwrap();
+        println!("Saving output to `{}`", page_path.display());
     }
 
 }
@@ -134,7 +134,8 @@ fn parse_content(br: &mut BufReader<fs::File>) -> Result<tera::Context,ParseErro
                 return Err(ParseError::InvalidBody);
             }
             //TODO: translate
-            context.add("__content__", &s);
+            let html = markdown::to_html(&s);
+            context.add("__content__", &html);
             return Ok(context);
         }
 
