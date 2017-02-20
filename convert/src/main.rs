@@ -32,32 +32,28 @@ fn main() {
              .required(true)
              .takes_value(true)
              .value_name("directory")
-             .help("Location of files to process (`index`/`template.html.tera` and posts)")
+             .help("Location of files (`index`/`template.html.tera` and posts)")
              )
-        .arg(clap::Arg::with_name("template")
-             .takes_value(true)
-             .short("t")
-             .help("Path to post template (defaults to <directory>/*.html.tera)")
-             )
-        .arg(clap::Arg::with_name("index")
-             .takes_value(true)
-             .short("i")
-             .help("Path to index template (defaults to <directory>/index.html.tera)")
-             )
+        //.arg(clap::Arg::with_name("template")
+        //     .takes_value(true)
+        //     .short("t")
+        //     .help("Path to post template (defaults to <directory>/*.html.tera)")
+        //     )
+        //.arg(clap::Arg::with_name("index")
+        //     .takes_value(true)
+        //     .short("i")
+        //     .help("Path to index template (defaults to <directory>/index.html.tera)")
+        //     )
         .get_matches();
 
     //dir: path where all content (and maybe the template) is located
     let dir = Path::new(matches.value_of("dir").unwrap());
     assert!(dir.is_dir(), "<directory> must be a directory and not a file");
 
-    //what we're going to feed all the content in `dir` into
-    let template_path: PathBuf = match matches.value_of("template") {
-        Some(t) => PathBuf::from(t),
-        None => dir.join(DEFAULT_TEMPL),
-    };
-    let template_name_s = template_path.file_name().unwrap().to_str().unwrap();
-
-    assert!(template_path.is_file(), "the template must be an existing file");
+    let template_path = dir.join(DEFAULT_TEMPL);
+    let index_path = dir.join(DEFAULT_INDEX);
+    assert!(template_path.is_file());
+    assert!(index_path.is_file());
 
     //all the actual content we'll be using
     // follow directories recursively?
@@ -85,7 +81,7 @@ fn main() {
         println!("Opening file: `{}`", path.display());
         //tera doesn't like 
         let page_path = dir.join(path.file_stem().unwrap()).with_extension("html");
-        let page = render_page(&templates, template_name_s, &path);
+        let page = render_page(&templates, DEFAULT_TEMPL, &path);
         save_page(page, &page_path).unwrap();
         println!("Saving output to `{}`", page_path.display());
     }
@@ -133,7 +129,6 @@ fn parse_content(br: &mut BufReader<fs::File>) -> Result<tera::Context,ParseErro
             if let Err(_) = br.read_to_string(&mut s) {
                 return Err(ParseError::InvalidBody);
             }
-            //TODO: translate
             let html = markdown::to_html(&s);
             context.add("__content__", &html);
             return Ok(context);
