@@ -3,6 +3,10 @@ extern crate clap;
 extern crate tera;
 extern crate markdown;
 
+#[macro_use]
+extern crate serde_derive;
+
+
 use std::path::{Path, PathBuf};
 use std::fs;
 use std::io::{self, BufRead, BufReader, Read, Write};
@@ -20,7 +24,21 @@ use tera::Tera;
 // will look for *.html.tera
 const DEFAULT_TEMPL: &'static str = "template.html.tera";
 const DEFAULT_INDEX: &'static str = "index.html.tera";
-static POST_SUFFIX: &'static str = "post";
+const POST_SUFFIX: &'static str = "post";
+
+#[derive(Debug, Default, Serialize)]
+struct PageData {
+    title: Option<String>,
+    description: Option<String>,
+    date: Option<String>,
+}
+
+#[derive(Debug)]
+enum ParseError {
+    Unfinished,
+    InvalidLine(usize),
+    InvalidBody,
+}
 
 fn main() {
     //TODO: modify index.html
@@ -75,17 +93,27 @@ fn main() {
     all_templates.set_file_name("*.html.tera");
     let all_templates_s = rel_str_from_pathbuf(&all_templates);
     let templates = tera::Tera::new(all_templates_s).unwrap();
+    let mut page_data: Vec<PageData> = vec![];
 
     //only iterate through `.post` files
     for path in files {
         println!("Opening file: `{}`", path.display());
         //tera doesn't like 
         let page_path = dir.join(path.file_stem().unwrap()).with_extension("html");
-        let page = render_page(&templates, DEFAULT_TEMPL, &path);
+        let page = render_page(&templates, &mut page_data, &path);
         save_page(page, &page_path).unwrap();
         println!("Saving output to `{}`", page_path.display());
     }
 
+    println!("\nPage Data: {:?}\n", page_data);
+    let mut context = tera::Context::new();
+    context.add("posts", &page_data);
+
+    let index_res = templates.render(DEFAULT_INDEX, context).unwrap();
+    let mut index_out = index_path.clone();
+    index_out.set_extension("");
+    println!("Writing result to `{}`", index_out.display());
+    save_page(index_res, &index_out).unwrap();
 }
 
 fn rel_str_from_pathbuf<'a>(pb: &'a Path) -> &'a str { //bonus lifetime
@@ -103,22 +131,24 @@ fn save_page(page: String, dest: &Path) -> Result<(), io::Error> {
     f.write_all(page.as_bytes())
 }
 
-fn render_page(templates: &Tera, template: &str, path: &PathBuf) -> String {
+fn render_page(templates: &Tera, page_data: &mut Vec<PageData>, path: &PathBuf) 
+        -> String {
     //can throw errors if template/context pair invalid: non-recoverable
     let f = fs::File::open(path).expect("Unable to open file");
     let mut r = BufReader::new(f);
-    let context = parse_content(&mut r).expect("Failed to parse file config");
-    templates.render(template, context)
+    let context = parse_content(&mut r, page_data).expect("Failed to parse file config");
+    templates.render(DEFAULT_TEMPL, context)
         .unwrap_or_else(|e| 
             panic!("Failed to apply context {:?}\n\tto template {:?}:\n\t{:?}", 
-                           path, template, e))
+                           path, DEFAULT_TEMPL, e))
 }
 
-
-fn parse_content(br: &mut BufReader<fs::File>) -> Result<tera::Context,ParseError> {
+fn parse_content(br: &mut BufReader<fs::File>, page_data: &mut Vec<PageData>) 
+        -> Result<tera::Context,ParseError> {
     let mut context = tera::Context::new();
     let mut s = String::new();
     let mut count = 0;
+    let mut page_datum = PageData::default();
     loop {
         s.clear();
         let r = br.read_line(&mut s);
@@ -129,6 +159,8 @@ fn parse_content(br: &mut BufReader<fs::File>) -> Result<tera::Context,ParseErro
             if let Err(_) = br.read_to_string(&mut s) {
                 return Err(ParseError::InvalidBody);
             }
+            //Success
+            page_data.push(page_datum);
             let html = markdown::to_html(&s);
             context.add("__content__", &html);
             return Ok(context);
@@ -138,22 +170,20 @@ fn parse_content(br: &mut BufReader<fs::File>) -> Result<tera::Context,ParseErro
         if line.len() == 0 || line.starts_with('#') || line.starts_with("//") {
             //blank line or comment
             continue;
-        }
+        } 
         // key and value separated by a colon
         // colons not allowed in the key
         // (no keys in the colon either D: )
         let mid: usize = line.find(':').ok_or(ParseError::InvalidLine(count))?;
         let (first, second) = line.split_at(mid);
-        let (key, value) = (first.trim(), second[1..].trim());
-        context.add(key, &value);
-
+        let (key, value) = (first.trim().to_lowercase(), second[1..].trim());
+        context.add(&key, &value);
+        match key.as_str() {
+            "date"        => page_datum.date = Some(String::from(value)),
+            "title"       => page_datum.title = Some(String::from(value)),
+            "description" => page_datum.description = Some(String::from(value)),
+            _ => {}
+        };
         count += 1;
     }
-}
-
-#[derive(Debug)]
-enum ParseError {
-    Unfinished,
-    InvalidLine(usize),
-    InvalidBody,
 }
