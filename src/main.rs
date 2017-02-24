@@ -40,6 +40,10 @@ fn github() -> Redirect {
     Redirect::to("https://github.com/stensonowen")
 }
 
+#[get("/blog/<file..>")]
+fn blog_post(file: PathBuf) -> Option<NamedFile> {
+	NamedFile::open(Path::new("static/blog/").join(file)).ok()
+}
 
 
 // ERROR HANDLING
@@ -54,10 +58,11 @@ fn main() {
     //verify we're in the right directory
     assert!(Path::new("static").is_dir(), "No `static` folder; change directories");
     assert!(Path::new("public").is_dir(), "No `public` folder; change directories");
+    assert!(Path::new("public").is_dir(), "No `public` folder; change directories");
     
     //run
     rocket::ignite()
-        .mount("/", routes![index, files, gpg, resume, github, well_known])
+        .mount("/", routes![index, files, gpg, resume, github, well_known, blog_post])
         .catch(errors![not_found])
         .launch();
 }

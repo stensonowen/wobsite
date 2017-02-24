@@ -21,7 +21,7 @@ use tera::Tera;
 //  index.html.tera: index template linking to blog posts
 
 // will look for *.html.tera
-const DEFAULT_TEMPL: &'static str = "template.html.tera";
+const DEFAULT_TEMPL: &'static str = "post.html.tera";
 const DEFAULT_INDEX: &'static str = "index.html.tera";
 const POST_SUFFIX: &'static str = "post";
 

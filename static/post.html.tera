@@ -2,7 +2,7 @@
 <html lang="en">
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>oms</title>
+    <title>oms: {{ date }}: {{ title }}</title>
     <style>
         body { 
             margin: 1em auto;
@@ -24,49 +24,20 @@
             }
         }
     </style>
-    <article>
+    <header>
         <h2>oms &nbsp | &nbsp Owen Stenson &nbsp | &nbsp qjkxkcd</h2>
-        <aside>
-            <a href="/github">github</a>
-            | <a href="/gpg">gpg key</a>
-            | <a href="/resume">resume</a>
-            | <a href="/static/who-uses-rss-anymore">rss</a>
-        </aside>
-
-        <aside>
-            owen@oms.sh
-            | stenso@rpi.edu
-        </aside>
-
-        <aside>
-            CS RPI 2018
-        </aside>
-        </header>
-
-        <section>
-            <h3>Projects</h3>
-            <ul>
-                <li> <a href="https://github.com/stensonowen/wikilinks">wikilinks</a>
-                    <a href="https://bfs.oms.sh">(simplewiki demo)</a> </li>
-                <li> <a href="https://github.com/stensonowen/page-mon">page monitor</a> </li>
-            </ul>
-        </section>
-
-        </section>
-        <h3>Posts</h3>
-        <ul>
-            <li> <a href="/blog/post1">Post 1</a> </li>
-            <li> <a href="/blog/post2">Post 2</a> </li>
-        </ul>
-        </section>
-
+        <h1>{{ title }}</h1>
+        <h2>{{ date }}</h2>
+    </header>
+    <article>
+        {{ __content__ }}
     </article>
 
 
-    <footer>
+    <article>
         <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/">
             <img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png"/></a>
         <a rel="license" style="font-size: 0.95em" href="http://creativecommons.org/licenses/by-sa/4.0/">Creative Commons Attribution-ShareAlike 4.0 International License
         </a>
-    </footer>
+    </article>
 
