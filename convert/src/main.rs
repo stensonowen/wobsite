@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate clap;
 extern crate tera;
-extern crate markdown;
 
 #[macro_use]
 extern crate serde_derive;
@@ -31,6 +30,7 @@ struct PageData {
     title: Option<String>,
     description: Option<String>,
     date: Option<String>,
+    url: Option<String>,
 }
 
 #[derive(Debug)]
@@ -52,16 +52,18 @@ fn main() {
              .value_name("directory")
              .help("Location of files (`index`/`template.html.tera` and posts)")
              )
-        //.arg(clap::Arg::with_name("template")
-        //     .takes_value(true)
-        //     .short("t")
-        //     .help("Path to post template (defaults to <directory>/*.html.tera)")
-        //     )
-        //.arg(clap::Arg::with_name("index")
-        //     .takes_value(true)
-        //     .short("i")
-        //     .help("Path to index template (defaults to <directory>/index.html.tera)")
-        //     )
+        .arg(clap::Arg::with_name("output")
+             .takes_value(true)
+             .short("o")
+             .long("output")
+             .help("Output folder for rendered html posts")
+             )
+        .arg(clap::Arg::with_name("input")
+             .takes_value(true)
+             .short("i")
+             .long("input")
+             .help("All input files to use")
+             )
         .get_matches();
 
     //dir: path where all content (and maybe the template) is located
@@ -73,11 +75,16 @@ fn main() {
     assert!(template_path.is_file());
     assert!(index_path.is_file());
 
+    let input_dir = match matches.value_of("input") {
+        None => dir,
+        Some(p) => Path::new(p),
+    };
+
     //all the actual content we'll be using
     // follow directories recursively?
     // ignore files we can't get a handle to (complain explicitly?)
     let post_type: Option<&OsStr> = Some(OsStr::new(POST_SUFFIX));
-    let files: Vec<PathBuf> = fs::read_dir(dir)
+    let files: Vec<PathBuf> = fs::read_dir(input_dir)
         .expect("Failed to open directory")
         .filter_map(|de| match de {
             Ok(d) => Some(d.path()),
@@ -98,11 +105,15 @@ fn main() {
     //only iterate through `.post` files
     for path in files {
         println!("Opening file: `{}`", path.display());
-        //tera doesn't like 
-        let page_path = dir.join(path.file_stem().unwrap()).with_extension("html");
+        let page_fold = match matches.value_of("output") {
+            None => dir,
+            Some(p) => Path::new(p)
+        }.to_path_buf();
+        let page_name = path.file_stem().unwrap();
+        let page_path = page_fold.join(page_name).with_extension("html");
         let page = render_page(&templates, &mut page_data, &path);
-        save_page(page, &page_path).unwrap();
         println!("Saving output to `{}`", page_path.display());
+        save_page(page, &page_path).unwrap();
     }
 
     println!("\nPage Data: {:?}\n", page_data);
@@ -161,8 +172,9 @@ fn parse_content(br: &mut BufReader<fs::File>, page_data: &mut Vec<PageData>)
             }
             //Success
             page_data.push(page_datum);
-            let html = markdown::to_html(&s);
-            context.add("__content__", &html);
+            //let html = markdown::to_html(&s);
+            //context.add("__content__", &html);
+            context.add("__content__", &s);
             return Ok(context);
         }
 
@@ -179,6 +191,7 @@ fn parse_content(br: &mut BufReader<fs::File>, page_data: &mut Vec<PageData>)
         let (key, value) = (first.trim().to_lowercase(), second[1..].trim());
         context.add(&key, &value);
         match key.as_str() {
+            "url"         => page_datum.url  = Some(String::from(value)),
             "date"        => page_datum.date = Some(String::from(value)),
             "title"       => page_datum.title = Some(String::from(value)),
             "description" => page_datum.description = Some(String::from(value)),

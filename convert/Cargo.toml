@@ -6,7 +6,6 @@ authors = ["owen <owen@oms.sh>"]
 [dependencies]
 clap = "2.20.4"
 tera = "0.7.1"
-markdown = "0.2.0"
 serde_derive = "*"
 serde = "*"
 
