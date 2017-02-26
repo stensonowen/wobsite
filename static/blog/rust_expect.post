@@ -135,7 +135,7 @@ bb1:                                              ; preds = %start
 </table>
 <p>It isn't huge, but there's definitely a consistent difference.</p>
 <div class="figure">
-<img src="benchmark.png" alt="benchmarks" /><p class="caption">benchmarks</p>
+<img src="rust_expect__benchmark.png" alt="Hook vs Control Function benchmarks" /><p class="caption">Hook vs Control Function benchmarks</p>
 </div>
 <h3 id="future-work">Future Work</h3>
 <p>There is plenty that can be done to transform this demo from a proof-of-concept into something that is actually useful.</p>
