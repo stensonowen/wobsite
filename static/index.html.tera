@@ -65,8 +65,6 @@
                 </p> 
             </li>
             {% endfor %}
-            <li> <a href="/static/post1">Post 1</a> </li>
-            <li> <a href="/static/post2">Post 2</a> </li>
         </ul>
         </section>
 
