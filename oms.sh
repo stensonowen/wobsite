@@ -23,5 +23,9 @@ server {
         autoindex off;
     }
 
+    location /.well-known/ {
+        autoindex off;
+    }
+
 }
 
