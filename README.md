@@ -1,5 +1,11 @@
-## Just a website 
+### site
 
-Basic website for playing with website things. Inspiration drawn from [NoScript](https://en.wikipedia.org/wiki/NoScript) and [Better Motherfucking Website](https://bestmotherfucking.website/).
+# Setup
+```sh
+mkdir -p /var/www/oms.sh/public
+cp -r static /var/www/oms.sh/  # ln instead? glob?
 
+cp nginx.conf /etc/nginx/sites-available/oms.sh
+ln -s /etc/nginx/sites-available/oms.sh /etc/nginx/sites-enabled/oms.sh
+```
 
