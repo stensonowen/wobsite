@@ -24,7 +24,7 @@ server {
     ssl_stapling on;
     ssl_stapling_verify on;
     add_header Strict-Transport-Security max-age=15768000;
-    add_header Content-Security-Policy "default-src https:; frame-ancestors 'none'";
+    add_header Content-Security-Policy "default-src 'none'; img-src 'self'; script-src 'none'; style-src 'self'; object-src 'none'; report-uri /csp-reports; frame-ancestors 'none'";
     add_header X-Frame-Options DENY;
 
 
